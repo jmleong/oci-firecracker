@@ -83,17 +83,17 @@ For a Firecracker / serverless host the money metric is **cost per microVM-hour*
 
 Same silicon generation (AMD EPYC Turin/Zen5), different cloud. OCI **E6.256** (local NVMe) vs the two AWS Turin metal hosts from the companion AWS study — **c8a** (compute) and **m8a** (general-purpose), both EPYC 9R45, Turin + local NVMe. The two AWS hosts share the same silicon (they differ only in RAM class), so their per-guest numbers are near-identical; the ratio column compares OCI to their geometric mean (the same pair-geomean method used in the AWS study). This isolates the *cloud platform* (host kernel, VMM tuning, storage, power limits) on matched silicon.
 
-| Metric | c8a (AWS) | m8a (AWS) | OCI E6.256 | OCI vs AWS geomean |
-|---|---|---|---|---|
-| Boot p50 (ms) | 99.7 | 100.5 | 122.5 | 0.82× (AWS) |
-| virtio-net h→g (Gbps) | 45.4 | 40.0 | 50.7 | 1.19× (OCI) |
-| virtio-blk randread (IOPS) | 209,482.0 | 254,866.0 | 255,019.0 | 1.10× (OCI) |
-| AES-256 8-thread (MiB/s) | 9,482.8 | 9,478.8 | 8,681.6 | 0.92× (AWS) |
+| Metric | c8a (AWS) | m8a (AWS) | OCI E6.Ax.192 | OCI E6.256 | E6.Ax vs AWS | E6.256 vs AWS |
+|---|---|---|---|---|---|---|
+| Boot p50 (ms) | 99.7 | 100.5 | 122.3 | 122.5 | 0.82× (AWS) | 0.82× (AWS) |
+| virtio-net h→g (Gbps) | 45.4 | 40.0 | 50.8 | 50.7 | 1.19× (OCI) | 1.19× (OCI) |
+| virtio-blk randread (IOPS) | 209,482.0 | 254,866.0 | 233,852.0 | 255,019.0 | 1.01× (OCI) | 1.10× (OCI) |
+| AES-256 8-thread (MiB/s) | 9,482.8 | 9,478.8 | 8,676.2 | 8,681.6 | 0.92× (AWS) | 0.92× (AWS) |
 
-*OCI vs AWS = normalized so >1.0 means OCI is better on that metric (boot is inverted — lower latency is better). Ratio is against the geomean of c8a and m8a.*
+*Ratios normalized so >1.0 means OCI beats the AWS AMD baseline on that metric (boot is inverted — lower latency is better). Baseline = geomean of c8a and m8a. The two OCI Turin shapes track each other closely, as expected for identical silicon.*
 
 ![OCI AMD Turin normalized to AWS AMD Turin](oci-vs-aws-amd-turin.png)
 
-*Bars are OCI E6.256 normalized to the AWS AMD baseline (dashed line = AWS = 1.0). Above the line = OCI advantage.*
+*Bars: OCI E6.Ax.192 and E6.256 normalized to the AWS AMD Turin baseline (dashed line = AWS = 1.0). Above the line = OCI advantage.*
 
 **Read:** OCI's AMD Turin leads on virtio-net and virtio-block but trails slightly on cold-start boot and full-socket AES — a mixed result, not a clean sweep. The boot and AES gaps are small and plausibly reflect host-kernel/VMM tuning and per-SKU clock/power-limit differences (OCI 9J45 vs AWS 9R45 custom Turin parts), not an architectural difference.

@@ -297,30 +297,37 @@ def cross_cloud_section(d, aws_val, aws_hosts, chart_path):
              "pair-geomean method used in the AWS study). This isolates the *cloud platform* (host "
              "kernel, VMM tuning, storage, power limits) on matched silicon.")
     L.append("")
-    L.append("| Metric | c8a (AWS) | m8a (AWS) | OCI E6.256 | OCI vs AWS geomean |")
-    L.append("|---|---|---|---|---|")
-    labels, norms = [], []
+    oci_ax = d.get("BM.Standard.E6.Ax.192", {}).get("results", {})
+    def dig(res, path):
+        o = res
+        for p in path: o = o.get(p, 0) if isinstance(o, dict) else 0
+        return o
+    L.append("| Metric | c8a (AWS) | m8a (AWS) | OCI E6.Ax.192 | OCI E6.256 | E6.Ax vs AWS | E6.256 vs AWS |")
+    L.append("|---|---|---|---|---|---|---|")
+    labels, norms_ax, norms_256 = [], [], []
     for label, path, hb in XCLOUD:
         a = aws_val(path)
         vc = _host_val(c8a, path) if c8a else 0
         vm = _host_val(m8a, path) if m8a else 0
-        o = oci
-        for p in path: o = o.get(p, 0) if isinstance(o, dict) else 0
-        r = (o / a) if hb else (a / o)   # >1 = OCI better
-        arrow = "OCI" if r >= 1.0 else "AWS"
-        L.append(f"| {label} | {vc:,.1f} | {vm:,.1f} | {o:,.1f} | {r:.2f}× ({arrow}) |")
-        labels.append(label.split(" (")[0]); norms.append(r)
+        oax = dig(oci_ax, path); o256 = dig(oci, path)
+        rax = (oax / a) if hb else (a / oax)      # >1 = OCI better
+        r256 = (o256 / a) if hb else (a / o256)
+        aa = "OCI" if rax >= 1.0 else "AWS"; a2 = "OCI" if r256 >= 1.0 else "AWS"
+        L.append(f"| {label} | {vc:,.1f} | {vm:,.1f} | {oax:,.1f} | {o256:,.1f} | "
+                 f"{rax:.2f}× ({aa}) | {r256:.2f}× ({a2}) |")
+        labels.append(label.split(" (")[0]); norms_ax.append(rax); norms_256.append(r256)
     L.append("")
-    L.append("*OCI vs AWS = normalized so >1.0 means OCI is better on that metric "
-             "(boot is inverted — lower latency is better). Ratio is against the geomean of c8a and m8a.*")
+    L.append("*Ratios normalized so >1.0 means OCI beats the AWS AMD baseline on that metric "
+             "(boot is inverted — lower latency is better). Baseline = geomean of c8a and m8a. "
+             "The two OCI Turin shapes track each other closely, as expected for identical silicon.*")
     L.append("")
-    # bar chart
-    made = _make_chart(labels, norms, chart_path)
+    # grouped bar chart (E6.Ax + E6.256 vs AWS baseline)
+    made = _make_chart(labels, norms_ax, norms_256, chart_path)
     if made:
         L.append(f"![OCI AMD Turin normalized to AWS AMD Turin]({os.path.basename(chart_path)})")
         L.append("")
-        L.append("*Bars are OCI E6.256 normalized to the AWS AMD baseline (dashed line = AWS = 1.0). "
-                 "Above the line = OCI advantage.*")
+        L.append("*Bars: OCI E6.Ax.192 and E6.256 normalized to the AWS AMD Turin baseline "
+                 "(dashed line = AWS = 1.0). Above the line = OCI advantage.*")
         L.append("")
     L.append("**Read:** OCI's AMD Turin leads on virtio-net and virtio-block but trails slightly on "
              "cold-start boot and full-socket AES — a mixed result, not a clean sweep. The boot and AES "
@@ -329,25 +336,30 @@ def cross_cloud_section(d, aws_val, aws_hosts, chart_path):
     L.append("")
     return "\n".join(L)
 
-def _make_chart(labels, norms, path):
+def _make_chart(labels, norms_ax, norms_256, path):
     try:
         import matplotlib
         matplotlib.use("Agg")
         import matplotlib.pyplot as plt
+        import numpy as np
     except Exception:
         return False
-    fig, ax = plt.subplots(figsize=(8, 4.2))
-    colors = ["#2e7d32" if v >= 1.0 else "#c62828" for v in norms]
-    bars = ax.bar(labels, norms, color=colors, width=0.55)
+    x = np.arange(len(labels)); w = 0.38
+    fig, ax = plt.subplots(figsize=(9, 4.6))
+    b1 = ax.bar(x - w/2, norms_ax, w, label="OCI E6.Ax.192", color="#1565c0")
+    b2 = ax.bar(x + w/2, norms_256, w, label="OCI E6.256", color="#2e7d32")
     ax.axhline(1.0, ls="--", color="#555", lw=1)
     ax.set_ylabel("OCI performance ÷ AWS (AMD Turin)")
-    ax.set_title("Firecracker on AMD Turin: OCI E6.256 normalized to AWS baseline")
-    ax.set_ylim(0, max(1.35, max(norms) * 1.15))
-    for b, v in zip(bars, norms):
-        ax.text(b.get_x() + b.get_width()/2, v + 0.02, f"{v:.2f}×", ha="center", fontsize=10)
-    ax.text(0.99, 1.02, "AWS baseline = 1.0", transform=ax.get_yaxis_transform(),
+    ax.set_title("Firecracker on AMD Turin: OCI normalized to AWS baseline")
+    ax.set_xticks(x); ax.set_xticklabels(labels, rotation=15, ha="right", fontsize=9)
+    ax.set_ylim(0, max(1.35, max(norms_ax + norms_256) * 1.15))
+    for bars in (b1, b2):
+        for b in bars:
+            ax.text(b.get_x() + b.get_width()/2, b.get_height() + 0.02,
+                    f"{b.get_height():.2f}", ha="center", fontsize=8)
+    ax.text(0.995, 1.02, "AWS baseline = 1.0", transform=ax.get_yaxis_transform(),
             ha="right", fontsize=8, color="#555")
-    plt.xticks(rotation=15, ha="right", fontsize=9)
+    ax.legend(fontsize=9, loc="upper left")
     plt.tight_layout()
     fig.savefig(path, dpi=140)
     plt.close(fig)
