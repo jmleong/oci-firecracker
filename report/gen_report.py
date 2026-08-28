@@ -29,6 +29,11 @@ SHAPES = [
 BASE = "BM.Standard.E5.192"       # Zen4
 GEN  = "BM.Standard.E6.Ax.192"    # Zen5, same 384 threads as E5.192
 
+# OCI E-series list pricing (US$, pre-discount). E6 is priced the same per-OCPU as E5.
+# Override via OCI_OCPU_RATE / OCI_MEM_RATE env (e.g. your negotiated rate).
+OCPU_RATE = float(os.environ.get("OCI_OCPU_RATE", "0.025"))   # $/OCPU-hour
+MEM_RATE  = float(os.environ.get("OCI_MEM_RATE",  "0.0015"))  # $/GB-hour
+
 def load(results_dir):
     d = {}
     for key, _, _ in SHAPES:
@@ -104,32 +109,36 @@ def build(d):
     # --- full results table ---
     L("## Full results")
     L("")
-    hdr = "| Metric | E5.192 (Zen4) | E6.Ax.192 (Zen5) | E6.256 (Zen5) | E5.192 → E6.Ax.192 |"
+    hdr = "| Metric | E5.192 (Zen4) | E6.Ax.192 (Zen5) | E6.256 (Zen5) | E5.192 → E6.Ax.192 | E5.192 → E6.256 |"
     L(hdr)
-    L("|---|---|---|---|---|")
+    L("|---|---|---|---|---|---|")
     def row(label, path, nd=1, higher=True, storage=False):
         b = g(d, BASE, *path); a = g(d, GEN, *path); c = g(d, "BM.Standard.E6.256", *path)
         star = " †" if storage else ""
-        L(f"| {label}{star} | {fnum(b,nd)} | {fnum(a,nd)} | {fnum(c,nd)} | {ratio(b,a,higher)} |")
-    L("| **Boot latency (cold-start, fast-init)** | | | | |")
+        L(f"| {label}{star} | {fnum(b,nd)} | {fnum(a,nd)} | {fnum(c,nd)} | "
+          f"{ratio(b,a,higher,'E6.Ax','E5')} | {ratio(b,c,higher,'E6.256','E5')} |")
+    def cat(name): L(f"| **{name}** | | | | | |")
+    cat("Boot latency (cold-start, fast-init)")
     row("p50 boot (ms)", ("results","boot_latency","p50"), 1, higher=False, storage=True)
     row("p90 boot (ms)", ("results","boot_latency","p90"), 1, higher=False, storage=True)
-    L("| **Fleet density (256 MiB/VM)** | | | | |")
+    cat("Fleet density (256 MiB/VM)")
     row("microVMs ready", ("results","density","ready"), 0, higher=True)
     row("fleet boot time (s)", ("results","density","fleet_boot_seconds"), 2, higher=False, storage=True)
-    L("| **Network (virtio-net, iperf3)** | | | | |")
+    cat("Network (virtio-net, iperf3)")
     row("host→guest (Gbps)", ("results","net_iperf3","fwd_gbps"), 1, higher=True)
     row("guest→host (Gbps)", ("results","net_iperf3","rev_gbps"), 1, higher=True)
-    L("| **Block I/O (virtio-blk, fio direct)** | | | | |")
+    cat("Block I/O (virtio-blk, fio direct)")
     row("4K randread (IOPS)", ("results","block_fio","randread_iops"), 0, higher=True, storage=True)
     row("4K randwrite (IOPS)", ("results","block_fio","randwrite_iops"), 0, higher=True, storage=True)
     row("1M seqread (MiB/s)", ("results","block_fio","seqread_mibps"), 0, higher=True, storage=True)
-    L("| **Guest compute (in-VM)** | | | | |")
+    cat("Guest compute (in-VM)")
     row("AES-256 1-thread (MiB/s)", ("results","guest_compute","aes256_1t_mibps"), 1, higher=True)
     row("AES-256 8-thread (MiB/s)", ("results","guest_compute","aes256_nt_mibps"), 1, higher=True)
     L("")
-    L("Ratio column = E6.Ax.192 vs E5.192 (the 384-thread core-matched pair). "
-      "† = storage-sensitive metric (see note): E6 on local NVMe, E5 on iSCSI block volume.")
+    L("Two ratio columns: **E5.192 → E6.Ax.192** is the 384-thread core-matched CPU-generation "
+      "comparison; **E5.192 → E6.256** is vs the larger flagship (which wins outright on the "
+      "storage-fed metrics — more NVMe and more threads). † = storage-sensitive (E6 on local NVMe, "
+      "E5 on iSCSI block volume).")
     L("")
     # --- methodology notes ---
     L("## Methodology notes")
@@ -173,7 +182,70 @@ def build(d):
         ram = f"{h.get('mem_total_kb',0)//1024//1024} GiB"
         L(f"| {short} ({gen}) | {h.get('cpu_model','?')} | {cores} | {h.get('threads_total','?')} | {ram} | {stor.get(key,'?')} |")
     L("")
+    rows.append(cost_perf_section(d))
     return "\n".join(rows)
+
+def cost_perf_section(d):
+    """OCI cost + price-performance (density economics). List pricing; env-overridable."""
+    L = []
+    L.append("## OCI cost & price-performance")
+    L.append("")
+    L.append(f"List prices (US$, pre-discount): OCI E-series bills **${OCPU_RATE:.4f} per OCPU-hour + "
+             f"${MEM_RATE:.4f} per GB-hour**, and **E6 is priced the same per-OCPU as E5** — so E6's "
+             "performance gains come at no per-core premium. Bare-metal OCPU/memory are fixed; 1 OCPU = "
+             "2 vCPUs (2 hardware threads). These are list rates before any committed-use or negotiated "
+             "discount — override with `OCI_OCPU_RATE` / `OCI_MEM_RATE` to use your own.")
+    L.append("")
+    L.append("| Shape | OCPU | RAM (GB) | OCPU $/hr | Memory $/hr | **Total $/hr** | ~$/month (730 h) |")
+    L.append("|---|---|---|---|---|---|---|")
+    costs = {}
+    for key, short, gen in SHAPES:
+        h = g(d, key, "host", default={})
+        if not h: continue
+        ocpu = int(h.get("threads_total", 0)) // 2
+        ram = h.get("mem_total_kb", 0) / 1024 / 1024
+        c_ocpu = ocpu * OCPU_RATE; c_mem = ram * MEM_RATE; hourly = c_ocpu + c_mem
+        costs[key] = (ocpu, ram, hourly)
+        L.append(f"| {short} | {ocpu} | {ram:,.0f} | {c_ocpu:,.2f} | {c_mem:,.2f} | **{hourly:,.2f}** | {hourly*730:,.0f} |")
+    L.append("")
+    L.append("### Price-performance: microVM density economics")
+    L.append("")
+    L.append("For a Firecracker / serverless host the money metric is **cost per microVM-hour** — how "
+             "cheaply you can host each 256-MiB guest — and its inverse, microVMs per dollar-hour. "
+             "(microVM count is thread-capped, so it scales with OCPU; the differentiator is how much "
+             "you pay in memory for those threads.)")
+    L.append("")
+    L.append("| Shape | microVMs (256 MiB) | Total $/hr | **$ per microVM-hour** | microVMs per $/hr |")
+    L.append("|---|---|---|---|---|")
+    rows_pp = []
+    for key, short, gen in SHAPES:
+        if key not in costs: continue
+        ocpu, ram, hourly = costs[key]
+        vms = g(d, key, "results", "density", "ready", default=0)
+        if not vms: continue
+        per_vm = hourly / vms
+        vms_per_dollar = vms / hourly
+        rows_pp.append((short, vms, hourly, per_vm, vms_per_dollar))
+        L.append(f"| {short} | {vms} | {hourly:,.2f} | **${per_vm:,.4f}** | {vms_per_dollar:,.1f} |")
+    L.append("")
+    L.append("*Cost per microVM-hour in US$; lower is better. Density is one microVM per hardware "
+             "thread at 256 MiB.*")
+    L.append("")
+    # takeaway: name the best value shape
+    if rows_pp:
+        best = min(rows_pp, key=lambda r: r[3])          # lowest $/microVM-hour
+        L.append(f"**Read:** on pure density economics, **{best[0]}** is the best value at "
+                 f"**${best[3]:,.4f} per microVM-hour** — it packs the most guests per dollar. "
+                 "E6.256 costs more per hour (more OCPUs + memory) but also hosts more microVMs, so its "
+                 "per-microVM cost lands close to E5; the E6 win is that you get Turin's ~2× throughput "
+                 "and local NVMe at the **same per-OCPU price** as E5. Because the storage-fed metrics "
+                 "(boot, block) are far better on E6's local NVMe, E6's *performance* per dollar on those "
+                 "axes is dramatically higher than the raw density numbers alone suggest.")
+        L.append("")
+    L.append("> Pricing is OCI public list price and may not reflect your committed-use/negotiated rate; "
+             "treat the dollar figures as relative, not billing-accurate.")
+    L.append("")
+    return "\n".join(L)
 
 # ----------------------------------------------------- cross-cloud (OCI vs AWS)
 def _geomean(vals):

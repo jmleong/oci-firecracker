@@ -14,26 +14,26 @@ The other metrics are reported **as-shipped**: E6 shapes include **local NVMe**,
 
 ## Full results
 
-| Metric | E5.192 (Zen4) | E6.Ax.192 (Zen5) | E6.256 (Zen5) | E5.192 → E6.Ax.192 |
-|---|---|---|---|---|
-| **Boot latency (cold-start, fast-init)** | | | | |
-| p50 boot (ms) † | 414.1 | 122.3 | 122.5 | 3.39× faster (E6.Ax) |
-| p90 boot (ms) † | 415.9 | 123.7 | 123.2 | 3.36× faster (E6.Ax) |
-| **Fleet density (256 MiB/VM)** | | | | |
-| microVMs ready | 384 | 384 | 512 | 1.00× higher (E6.Ax) |
-| fleet boot time (s) † | 48.98 | 1.75 | 2.34 | 27.99× faster (E6.Ax) |
-| **Network (virtio-net, iperf3)** | | | | |
-| host→guest (Gbps) | 8.7 | 50.8 | 50.7 | 5.85× higher (E6.Ax) |
-| guest→host (Gbps) | 8.6 | 56.4 | 58.7 | 6.57× higher (E6.Ax) |
-| **Block I/O (virtio-blk, fio direct)** | | | | |
-| 4K randread (IOPS) † | 110,256 | 233,852 | 255,019 | 2.12× higher (E6.Ax) |
-| 4K randwrite (IOPS) † | 88,539 | 213,707 | 199,577 | 2.41× higher (E6.Ax) |
-| 1M seqread (MiB/s) † | 8,507 | 10,652 | 23,476 | 1.25× higher (E6.Ax) |
-| **Guest compute (in-VM)** | | | | |
-| AES-256 1-thread (MiB/s) | 980.8 | 1,089.6 | 1,086.7 | 1.11× higher (E6.Ax) |
-| AES-256 8-thread (MiB/s) | 7,845.9 | 8,676.2 | 8,681.6 | 1.11× higher (E6.Ax) |
+| Metric | E5.192 (Zen4) | E6.Ax.192 (Zen5) | E6.256 (Zen5) | E5.192 → E6.Ax.192 | E5.192 → E6.256 |
+|---|---|---|---|---|---|
+| **Boot latency (cold-start, fast-init)** | | | | | |
+| p50 boot (ms) † | 414.1 | 122.3 | 122.5 | 3.39× faster (E6.Ax) | 3.38× faster (E6.256) |
+| p90 boot (ms) † | 415.9 | 123.7 | 123.2 | 3.36× faster (E6.Ax) | 3.38× faster (E6.256) |
+| **Fleet density (256 MiB/VM)** | | | | | |
+| microVMs ready | 384 | 384 | 512 | 1.00× higher (E6.Ax) | 1.33× higher (E6.256) |
+| fleet boot time (s) † | 48.98 | 1.75 | 2.34 | 27.99× faster (E6.Ax) | 20.93× faster (E6.256) |
+| **Network (virtio-net, iperf3)** | | | | | |
+| host→guest (Gbps) | 8.7 | 50.8 | 50.7 | 5.85× higher (E6.Ax) | 5.85× higher (E6.256) |
+| guest→host (Gbps) | 8.6 | 56.4 | 58.7 | 6.57× higher (E6.Ax) | 6.84× higher (E6.256) |
+| **Block I/O (virtio-blk, fio direct)** | | | | | |
+| 4K randread (IOPS) † | 110,256 | 233,852 | 255,019 | 2.12× higher (E6.Ax) | 2.31× higher (E6.256) |
+| 4K randwrite (IOPS) † | 88,539 | 213,707 | 199,577 | 2.41× higher (E6.Ax) | 2.25× higher (E6.256) |
+| 1M seqread (MiB/s) † | 8,507 | 10,652 | 23,476 | 1.25× higher (E6.Ax) | 2.76× higher (E6.256) |
+| **Guest compute (in-VM)** | | | | | |
+| AES-256 1-thread (MiB/s) | 980.8 | 1,089.6 | 1,086.7 | 1.11× higher (E6.Ax) | 1.11× higher (E6.256) |
+| AES-256 8-thread (MiB/s) | 7,845.9 | 8,676.2 | 8,681.6 | 1.11× higher (E6.Ax) | 1.11× higher (E6.256) |
 
-Ratio column = E6.Ax.192 vs E5.192 (the 384-thread core-matched pair). † = storage-sensitive metric (see note): E6 on local NVMe, E5 on iSCSI block volume.
+Two ratio columns: **E5.192 → E6.Ax.192** is the 384-thread core-matched CPU-generation comparison; **E5.192 → E6.256** is vs the larger flagship (which wins outright on the storage-fed metrics — more NVMe and more threads). † = storage-sensitive (E6 on local NVMe, E5 on iSCSI block volume).
 
 ## Methodology notes
 
@@ -52,6 +52,32 @@ Ratio column = E6.Ax.192 vs E5.192 (the 384-thread core-matched pair). † = sto
 | E5.192 (Genoa / Zen4) | AMD EPYC 9J14 96-Core Processor | 2 × 96 | 384 | 2267 GiB | none (iSCSI block volume) |
 | E6.Ax.192 (Turin / Zen5) | AMD EPYC 9J45 128-Core Processor | 2 × 96 | 384 | 1511 GiB | 2×960 GB NVMe |
 | E6.256 (Turin / Zen5) | AMD EPYC 9J45 128-Core Processor | 2 × 128 | 512 | 3023 GiB | 2×960 GB NVMe |
+
+## OCI cost & price-performance
+
+List prices (US$, pre-discount): OCI E-series bills **$0.0250 per OCPU-hour + $0.0015 per GB-hour**, and **E6 is priced the same per-OCPU as E5** — so E6's performance gains come at no per-core premium. Bare-metal OCPU/memory are fixed; 1 OCPU = 2 vCPUs (2 hardware threads). These are list rates before any committed-use or negotiated discount — override with `OCI_OCPU_RATE` / `OCI_MEM_RATE` to use your own.
+
+| Shape | OCPU | RAM (GB) | OCPU $/hr | Memory $/hr | **Total $/hr** | ~$/month (730 h) |
+|---|---|---|---|---|---|---|
+| E5.192 | 192 | 2,267 | 4.80 | 3.40 | **8.20** | 5,987 |
+| E6.Ax.192 | 192 | 1,511 | 4.80 | 2.27 | **7.07** | 5,159 |
+| E6.256 | 256 | 3,023 | 6.40 | 4.53 | **10.93** | 7,982 |
+
+### Price-performance: microVM density economics
+
+For a Firecracker / serverless host the money metric is **cost per microVM-hour** — how cheaply you can host each 256-MiB guest — and its inverse, microVMs per dollar-hour. (microVM count is thread-capped, so it scales with OCPU; the differentiator is how much you pay in memory for those threads.)
+
+| Shape | microVMs (256 MiB) | Total $/hr | **$ per microVM-hour** | microVMs per $/hr |
+|---|---|---|---|---|
+| E5.192 | 384 | 8.20 | **$0.0214** | 46.8 |
+| E6.Ax.192 | 384 | 7.07 | **$0.0184** | 54.3 |
+| E6.256 | 512 | 10.93 | **$0.0214** | 46.8 |
+
+*Cost per microVM-hour in US$; lower is better. Density is one microVM per hardware thread at 256 MiB.*
+
+**Read:** on pure density economics, **E6.Ax.192** is the best value at **$0.0184 per microVM-hour** — it packs the most guests per dollar. E6.256 costs more per hour (more OCPUs + memory) but also hosts more microVMs, so its per-microVM cost lands close to E5; the E6 win is that you get Turin's ~2× throughput and local NVMe at the **same per-OCPU price** as E5. Because the storage-fed metrics (boot, block) are far better on E6's local NVMe, E6's *performance* per dollar on those axes is dramatically higher than the raw density numbers alone suggest.
+
+> Pricing is OCI public list price and may not reflect your committed-use/negotiated rate; treat the dollar figures as relative, not billing-accurate.
 
 ## Cross-cloud: AMD Turin on OCI vs AWS
 
