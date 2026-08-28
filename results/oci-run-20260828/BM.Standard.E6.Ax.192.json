@@ -1,0 +1,44 @@
+{
+  "schema": "firecracker-bench/v1",
+  "note": "OCI validation run 2026-08-28. Boot=20 samples (not 50). All 5 benches captured individually after the reflink-NVMe fix; end-to-end run_all not used for this record because the first automated attempt hit the density disk-fill issue (since fixed). instance_type/AZ corrected by hand (OCI IMDS patch bug — AWS IMDS returns 400 HTML on OCI).",
+  "host": {
+    "instance_type": "BM.Standard.E6.Ax.192",
+    "availability_zone": "US-ASHBURN-AD-3",
+    "cpu_model": "AMD EPYC 9J45 128-Core Processor",
+    "cpu_vendor": "AuthenticAMD",
+    "sockets": 2,
+    "cores_per_socket": 96,
+    "threads_total": 384,
+    "numa_nodes": 2,
+    "mem_total_kb": 1584687344,
+    "thp_enabled": "madvise",
+    "kernel": "6.8.0-1057-oracle",
+    "fc_version": "v1.16.1",
+    "timestamp_utc": "2026-08-28T22:19:15Z"
+  },
+  "results": {
+    "boot_latency": {
+      "metric": "boot_latency_ms", "mode": "fast_init", "requested": 20, "succeeded": 20,
+      "min": 120.9, "p50": 122.300, "p90": 123.710, "p99": 124.943, "max": 125.0, "mean": 122.430
+    },
+    "density": {
+      "metric": "density", "per_vm_mem_mib": 256, "vcpu_oversub": 1, "ram_safety": 0.80,
+      "host_threads": 384, "host_mem_mib": 1547546, "ram_cap": 4836, "cpu_cap": 384,
+      "target": 384, "launched": 384, "ready": 384, "fleet_boot_seconds": 1.75,
+      "vms_per_core": 1.00, "vms_per_gib": 0.25
+    },
+    "net_iperf3": {
+      "metric": "net_iperf3", "vcpus": 2, "mem_mib": 1024, "streams": 4, "duration_s": 10,
+      "fwd_gbps": 50.752, "rev_gbps": 56.440, "parallel_gbps": 38.609
+    },
+    "block_fio": {
+      "metric": "block_fio", "vcpus": 2, "mem_mib": 1024, "file_size": "512M", "runtime_s": 15,
+      "randread_iops": 233852, "randwrite_iops": 213707, "seqread_mibps": 10652.4
+    },
+    "guest_compute": {
+      "metric": "guest_compute", "vcpus": 8, "mem_mib": 2048,
+      "aes256_1t_mibps": 1089.6, "aes256_nt_mibps": 8676.2,
+      "matrixprod_1t_bogops": 233.83, "matrixprod_nt_bogops": 1858.78
+    }
+  }
+}

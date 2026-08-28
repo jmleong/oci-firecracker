@@ -1,0 +1,9 @@
+# site-specific secrets / values — never commit
+config.env
+*.pem
+.oci-stage/
+# python
+__pycache__/
+*.pyc
+# local scratch
+results/collected/
