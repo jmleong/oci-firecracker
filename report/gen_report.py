@@ -66,7 +66,7 @@ def fnum(x, nd=1):
     except Exception:
         return str(x)
 
-def build(d):
+def build(d, chart2_path=None):
     rows = []
     L = rows.append
     ts = g(d, GEN, "host", "timestamp_utc", default="")
@@ -109,15 +109,16 @@ def build(d):
     # --- full results table ---
     L("## Full results")
     L("")
-    hdr = "| Metric | E5.192 (Zen4) | E6.Ax.192 (Zen5) | E6.256 (Zen5) | E5.192 → E6.Ax.192 | E5.192 → E6.256 |"
+    hdr = "| Metric | E5.192 (Zen4) | E6.Ax.192 (Zen5) | E6.256 (Zen5) |"
     L(hdr)
-    L("|---|---|---|---|---|---|")
+    L("|---|---|---|---|")
+    gen_metrics = []   # (label, higher_better, e5, e6ax, e6256) for the chart
     def row(label, path, nd=1, higher=True, storage=False):
         b = g(d, BASE, *path); a = g(d, GEN, *path); c = g(d, "BM.Standard.E6.256", *path)
         star = " †" if storage else ""
-        L(f"| {label}{star} | {fnum(b,nd)} | {fnum(a,nd)} | {fnum(c,nd)} | "
-          f"{ratio(b,a,higher,'E6.Ax','E5')} | {ratio(b,c,higher,'E6.256','E5')} |")
-    def cat(name): L(f"| **{name}** | | | | | |")
+        L(f"| {label}{star} | {fnum(b,nd)} | {fnum(a,nd)} | {fnum(c,nd)} |")
+        gen_metrics.append((label, higher, b, a, c))
+    def cat(name): L(f"| **{name}** | | | |")
     cat("Boot latency (cold-start, fast-init)")
     row("p50 boot (ms)", ("results","boot_latency","p50"), 1, higher=False, storage=True)
     row("p90 boot (ms)", ("results","boot_latency","p90"), 1, higher=False, storage=True)
@@ -135,10 +136,20 @@ def build(d):
     row("AES-256 1-thread (MiB/s)", ("results","guest_compute","aes256_1t_mibps"), 1, higher=True)
     row("AES-256 8-thread (MiB/s)", ("results","guest_compute","aes256_nt_mibps"), 1, higher=True)
     L("")
-    L("Two ratio columns: **E5.192 → E6.Ax.192** is the 384-thread core-matched CPU-generation "
-      "comparison; **E5.192 → E6.256** is vs the larger flagship (which wins outright on the "
-      "storage-fed metrics — more NVMe and more threads). † = storage-sensitive (E6 on local NVMe, "
-      "E5 on iSCSI block volume).")
+    L("† = storage-sensitive (E6 on local NVMe, E5 on iSCSI block volume).")
+    L("")
+    # normalized bar chart: E5 = 1.0 baseline, E6.Ax + E6.256 relative to it
+    if chart2_path:
+        made = _make_gen_chart(gen_metrics, chart2_path)
+        if made:
+            L(f"![E6 shapes normalized to E5.192]({os.path.basename(chart2_path)})")
+            L("")
+            L("*Each metric normalized to **E5.192 = 1.0** (dashed line): bars show how many times "
+              "better E6.Ax.192 and E6.256 are (for boot latency and fleet-boot, \"better\" means lower, "
+              "so the ratio is inverted). **Log scale** — the improvements span 1.1× (AES) to ~28× "
+              "(fleet boot), so a linear axis would hide the smaller ones. Storage-fed metrics (boot, "
+              "block, fleet-boot) carry E6's local-NVMe advantage; AES is the pure CPU-generation step.*")
+            L("")
     L("")
     # --- methodology notes ---
     L("## Methodology notes")
@@ -365,6 +376,41 @@ def _make_chart(labels, norms_ax, norms_256, path):
     plt.close(fig)
     return True
 
+def _make_gen_chart(metrics, path):
+    """Grouped log-scale bars: E6.Ax.192 and E6.256 normalized to E5.192 (=1.0)."""
+    try:
+        import matplotlib; matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+        import numpy as np
+    except Exception:
+        return False
+    labels, ax_vals, v256 = [], [], []
+    for label, hb, e5, e6ax, e6256 in metrics:
+        if not e5 or not e6ax or not e6256:
+            continue
+        labels.append(label)
+        ax_vals.append((e6ax / e5) if hb else (e5 / e6ax))
+        v256.append((e6256 / e5) if hb else (e5 / e6256))
+    x = np.arange(len(labels)); w = 0.38
+    fig, ax = plt.subplots(figsize=(11, 5))
+    b1 = ax.bar(x - w/2, ax_vals, w, label="E6.Ax.192", color="#1565c0")
+    b2 = ax.bar(x + w/2, v256, w, label="E6.256", color="#2e7d32")
+    ax.set_yscale("log")
+    ax.axhline(1.0, ls="--", color="#555", lw=1)
+    ax.set_ylabel("× better than E5.192  (log scale)")
+    ax.set_title("OCI Firecracker: E6 (Turin/Zen5) normalized to E5.192 (Genoa/Zen4)")
+    ax.set_xticks(x); ax.set_xticklabels(labels, rotation=25, ha="right", fontsize=8)
+    ax.set_ylim(0.8, max(ax_vals + v256) * 1.6)
+    for bars in (b1, b2):
+        for b in bars:
+            ax.text(b.get_x() + b.get_width()/2, b.get_height() * 1.04,
+                    f"{b.get_height():.2f}×", ha="center", fontsize=7)
+    ax.text(0.995, 1.0, "E5.192 = 1.0", transform=ax.get_yaxis_transform(),
+            ha="right", va="bottom", fontsize=8, color="#555")
+    ax.legend(fontsize=9)
+    plt.tight_layout(); fig.savefig(path, dpi=140); plt.close(fig)
+    return True
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("results_dir")
@@ -374,7 +420,9 @@ def main():
     d = load(a.results_dir)
     if BASE not in d or GEN not in d:
         print("ERROR: need at least E5.192 and E6.Ax.192 result JSONs", file=sys.stderr); sys.exit(1)
-    md = build(d)
+    chart2_path = (os.path.join(os.path.dirname(os.path.abspath(a.out)), "e6-vs-e5-normalized.png")
+                   if a.out else None)
+    md = build(d, chart2_path)
     # append cross-cloud section if AWS baseline available
     aws_dir = a.aws_dir or os.path.join(os.path.dirname(a.results_dir.rstrip("/")), "run-20260629")
     aws_val = _aws_baseline(aws_dir) if os.path.isdir(aws_dir) else None

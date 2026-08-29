@@ -14,26 +14,31 @@ The other metrics are reported **as-shipped**: E6 shapes include **local NVMe**,
 
 ## Full results
 
-| Metric | E5.192 (Zen4) | E6.Ax.192 (Zen5) | E6.256 (Zen5) | E5.192 → E6.Ax.192 | E5.192 → E6.256 |
-|---|---|---|---|---|---|
-| **Boot latency (cold-start, fast-init)** | | | | | |
-| p50 boot (ms) † | 414.1 | 122.3 | 122.5 | 3.39× faster (E6.Ax) | 3.38× faster (E6.256) |
-| p90 boot (ms) † | 415.9 | 123.7 | 123.2 | 3.36× faster (E6.Ax) | 3.38× faster (E6.256) |
-| **Fleet density (256 MiB/VM)** | | | | | |
-| microVMs ready | 384 | 384 | 512 | 1.00× higher (E6.Ax) | 1.33× higher (E6.256) |
-| fleet boot time (s) † | 48.98 | 1.75 | 2.34 | 27.99× faster (E6.Ax) | 20.93× faster (E6.256) |
-| **Network (virtio-net, iperf3)** | | | | | |
-| host→guest (Gbps) | 8.7 | 50.8 | 50.7 | 5.85× higher (E6.Ax) | 5.85× higher (E6.256) |
-| guest→host (Gbps) | 8.6 | 56.4 | 58.7 | 6.57× higher (E6.Ax) | 6.84× higher (E6.256) |
-| **Block I/O (virtio-blk, fio direct)** | | | | | |
-| 4K randread (IOPS) † | 110,256 | 233,852 | 255,019 | 2.12× higher (E6.Ax) | 2.31× higher (E6.256) |
-| 4K randwrite (IOPS) † | 88,539 | 213,707 | 199,577 | 2.41× higher (E6.Ax) | 2.25× higher (E6.256) |
-| 1M seqread (MiB/s) † | 8,507 | 10,652 | 23,476 | 1.25× higher (E6.Ax) | 2.76× higher (E6.256) |
-| **Guest compute (in-VM)** | | | | | |
-| AES-256 1-thread (MiB/s) | 980.8 | 1,089.6 | 1,086.7 | 1.11× higher (E6.Ax) | 1.11× higher (E6.256) |
-| AES-256 8-thread (MiB/s) | 7,845.9 | 8,676.2 | 8,681.6 | 1.11× higher (E6.Ax) | 1.11× higher (E6.256) |
+| Metric | E5.192 (Zen4) | E6.Ax.192 (Zen5) | E6.256 (Zen5) |
+|---|---|---|---|
+| **Boot latency (cold-start, fast-init)** | | | |
+| p50 boot (ms) † | 414.1 | 122.3 | 122.5 |
+| p90 boot (ms) † | 415.9 | 123.7 | 123.2 |
+| **Fleet density (256 MiB/VM)** | | | |
+| microVMs ready | 384 | 384 | 512 |
+| fleet boot time (s) † | 48.98 | 1.75 | 2.34 |
+| **Network (virtio-net, iperf3)** | | | |
+| host→guest (Gbps) | 8.7 | 50.8 | 50.7 |
+| guest→host (Gbps) | 8.6 | 56.4 | 58.7 |
+| **Block I/O (virtio-blk, fio direct)** | | | |
+| 4K randread (IOPS) † | 110,256 | 233,852 | 255,019 |
+| 4K randwrite (IOPS) † | 88,539 | 213,707 | 199,577 |
+| 1M seqread (MiB/s) † | 8,507 | 10,652 | 23,476 |
+| **Guest compute (in-VM)** | | | |
+| AES-256 1-thread (MiB/s) | 980.8 | 1,089.6 | 1,086.7 |
+| AES-256 8-thread (MiB/s) | 7,845.9 | 8,676.2 | 8,681.6 |
 
-Two ratio columns: **E5.192 → E6.Ax.192** is the 384-thread core-matched CPU-generation comparison; **E5.192 → E6.256** is vs the larger flagship (which wins outright on the storage-fed metrics — more NVMe and more threads). † = storage-sensitive (E6 on local NVMe, E5 on iSCSI block volume).
+† = storage-sensitive (E6 on local NVMe, E5 on iSCSI block volume).
+
+![E6 shapes normalized to E5.192](e6-vs-e5-normalized.png)
+
+*Each metric normalized to **E5.192 = 1.0** (dashed line): bars show how many times better E6.Ax.192 and E6.256 are (for boot latency and fleet-boot, "better" means lower, so the ratio is inverted). **Log scale** — the improvements span 1.1× (AES) to ~28× (fleet boot), so a linear axis would hide the smaller ones. Storage-fed metrics (boot, block, fleet-boot) carry E6's local-NVMe advantage; AES is the pure CPU-generation step.*
+
 
 ## Methodology notes
 
