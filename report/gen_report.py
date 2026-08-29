@@ -72,7 +72,7 @@ def build(d):
     ts = g(d, GEN, "host", "timestamp_utc", default="")
     fc = g(d, GEN, "host", "fc_version", default="")
     kern = g(d, GEN, "host", "kernel", default="")
-    L(f"# Firecracker microVM performance: AMD EPYC Genoa (E5) vs Turin (E6) on OCI bare-metal")
+    L(f"# Firecracker microVM performance: AMD EPYC on OCI and AWS")
     L("")
     L(f"*OCI bare-metal · Ashburn (us-ashburn-1) · Firecracker {fc} · kernel {kern} · "
       f"THP madvise · generated from run {ts}*")

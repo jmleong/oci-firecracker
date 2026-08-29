@@ -1,4 +1,4 @@
-# Firecracker microVM performance: AMD EPYC Genoa (E5) vs Turin (E6) on OCI bare-metal
+# Firecracker microVM performance: AMD EPYC on OCI and AWS
 
 *OCI bare-metal · Ashburn (us-ashburn-1) · Firecracker v1.16.1 · kernel 6.8.0-1057-oracle · THP madvise · generated from run 2026-08-28T22:19:15Z*
 

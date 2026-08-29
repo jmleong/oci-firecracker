@@ -94,7 +94,7 @@ python3 report/gen_report.py results/oci-run-20260828 -o report/report.md
 - **Cross-cloud (AMD Turin, OCI vs AWS):** mixed — OCI leads on virtio-net (~1.2x) and
   virtio-blk (~1.1x), trails slightly on boot (~0.82x) and full-socket AES (~0.92x).
 
-See `report/OCI-Firecracker-E5-vs-E6-report.md` for full tables, chart, and methodology.
+See `report/firecracker-amd-oci-and-aws.md` for full tables, chart, and methodology.
 
 ## Credits
 
