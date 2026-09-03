@@ -1,6 +1,21 @@
 ---
-name: "oci-run-workload"
-description: "Run a workload or benchmark headlessly across a fleet of OCI instances and collect the results. Pick a built-in benchmark (firecracker microVM suite, sysbench-cpu, sysbench-oltp, 7-zip, STREAM) or bring your own (a local dir or a git repo + command); the skill launches the fleet, self-provisions each host via cloud-init, HTTP-pulls results, optionally runs a report, and tears the fleet down. Trigger with: \"benchmark these OCI shapes\", \"run a workload on OCI\", \"/oci-run-workload\", or \"clean up my OCI benchmark instances\"."
+name: oci-run-workload
+description: "Run a workload or benchmark headlessly across a fleet of OCI instances and collect the results without SSH — pick a built-in benchmark (firecracker microVM suite, sysbench-cpu, sysbench-oltp, 7-zip, STREAM) or bring your own local dir or git repo, and the skill launches the fleet, self-provisions each host via cloud-init, HTTP-pulls results, optionally reports, and tears the fleet down. Use when you want to benchmark or compare OCI shapes, run a headless workload across OCI hosts, or clean up orphaned OCI benchmark instances — or say \"benchmark these OCI shapes\", \"run a workload on OCI\", or \"/oci-run-workload\"."
+license: "Copyright © Advanced Micro Devices, Inc., or its affiliates. All rights reserved. Portions of this content consists of AI generated content."
+metadata:
+  author: jorleong
+  version: "1.0.0"
+  category: automation
+  tags:
+    - oci
+    - benchmark
+    - workload
+    - fleet
+    - amd-epyc
+    - cloud-init
+    - performance
+compatibility:
+  universal: true
 ---
 
 # OCI Headless Workload / Benchmark Runner

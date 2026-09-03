@@ -80,7 +80,7 @@ def ensure_network(compartment, region, ssh_cidr=None, web_cidr=None):
         compartment_id=compartment, vcn_id=vcn.id, is_enabled=True, display_name="fcbench-igw")).data
     rt = net.get_route_table(vcn.default_route_table_id).data
     rules = list(rt.route_rules); have = {r.destination for r in rules}
-    for dest in ("0.0.0.0/0", "YOUR_CORP_RANGE_1", "YOUR_CORP_RANGE_2"):
+    for dest in ("0.0.0.0/0",):
         if dest not in have:
             rules.append(oci.core.models.RouteRule(destination=dest, destination_type="CIDR_BLOCK",
                                                    network_entity_id=igw.id))
@@ -105,7 +105,7 @@ def ensure_network(compartment, region, ssh_cidr=None, web_cidr=None):
 PRESETS = {
     "firecracker": {
         "desc": "Firecracker microVM 5-metric suite (boot/density/net/blk/AES) — needs bare-metal /dev/kvm",
-        "source": {"git": "https://github.com/deepindeepsea/amd-perf-toolkit-public", "subdir": "firecracker-bench"},
+        "source": {"git": "https://github.com/jmleong/oci-firecracker"},
         "install": "sudo apt-get install -y -qq iperf3 fio openssl xfsprogs jq",
         "run": "sudo bash host/run_all.sh",
         "results": ["/opt/fcbench/results/result.json"], "needs_reflink": True,

@@ -1,6 +1,20 @@
 ---
-name: "oci-instance"
-description: "Create and manage OCI compute instances interactively — pick an AMD E5/E6 bare-metal or E-flex VM shape, auto-provision networking (VCN/subnet/security-list), launch via the OCI Python SDK, then list/start/stop/terminate. Handles the corporate TLS-proxy CA bundle automatically. Trigger with: \"create an OCI instance\", \"spin up a VM on OCI\", \"list my OCI instances\", or \"/oci-instance\"."
+name: oci-instance
+description: "Create and manage OCI compute instances interactively — pick an AMD E5/E6 bare-metal or E-flex VM shape, auto-provision networking (VCN/subnet/security-list), launch via the OCI Python SDK, then list/start/stop/terminate, handling the corporate TLS-proxy CA bundle automatically. Use when you want to spin up, list, or tear down an Oracle Cloud VM from the sandbox, or say \"create an OCI instance\", \"list my OCI instances\", or \"/oci-instance\"."
+license: "Copyright © Advanced Micro Devices, Inc., or its affiliates. All rights reserved. Portions of this content consists of AI generated content."
+metadata:
+  author: jorleong
+  version: "1.0.0"
+  category: automation
+  tags:
+    - oci
+    - oracle-cloud
+    - compute
+    - amd-epyc
+    - vm-provisioning
+    - infrastructure
+compatibility:
+  universal: true
 ---
 
 # OCI Instance Creator & Manager
@@ -209,7 +223,7 @@ igw = igws[0] if igws else net.create_internet_gateway(oci.core.models.CreateInt
 # 3) Route table -> IGW for 0.0.0.0/0 + AMD corp ranges (mirrors the known-good vcn-dlau)
 rt = net.get_route_table(vcn.default_route_table_id).data
 rules = list(rt.route_rules); have = {r.destination for r in rules}
-for dest in ("0.0.0.0/0", "YOUR_CORP_RANGE", "YOUR_CORP_RANGE_2"):
+for dest in ("0.0.0.0/0",):
     if dest not in have:
         rules.append(oci.core.models.RouteRule(destination=dest, destination_type="CIDR_BLOCK",
                                                network_entity_id=igw.id))
